@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
+import android.provider.Settings.Global.getString
 import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +31,9 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.create
+import java.text.DateFormat
+import java.util.Date
+import java.util.TimeZone
 
 class MainActivity : AppCompatActivity() {
 
@@ -167,6 +171,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+//    private updateLocation(location: Location) {
+//        geoServiceCall = geoServices.geto
+//    }
+
+
     private fun updateWeather(location: Location) {
         // Call to get weather
         weatherServiceCall = weatherServices.getWeather(
@@ -200,7 +209,24 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    private fun displayWeather() {
+        val description = weatherResponse.weather[0].description.split(" ").joinToString(" ") {
+            it.replaceFirstChar { char -> char.uppercase }
+        }
+        binding.descriptionTv.text = getString(R.string.description, description, WeatherResponse.main.temp_max, WeatherResponse.main.temp_min)
+
+        val utcInMs = (weatherResponse.sys.sunrise + weatherRespomse.timezone) * 1000L - TimeZone.getDefault().rawOffset
+        val sunRise = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(utcInMs))
+    }
+
+    private fun displayPlace(isSuccess: Boolean) {
+
+        // When geoCall success => displayPlace(true)
+        // If is is success fail => displayPlace(false)
+        binding.placeTv.text = getString(R.string.place, geoResponse[0].name, gepResponse[0].state)
+
+    }
+
     private fun displayUpdateFailed() {
-        TODO("Not yet implemented")
     }
 }
