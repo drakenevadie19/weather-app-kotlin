@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
 import android.provider.Settings.Global.getString
+//import android.provider.Settings.Global.getString
 import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,10 +19,12 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
-import edu.tcu.bmei.weatherdemo.model.Place
+import com.google.android.material.snackbar.Snackbar
+import edu.tcu.dotnguyen.weather.model.Place
 import edu.tcu.dotnguyen.weather.databinding.ActivityMainBinding
 import edu.tcu.dotnguyen.weather.model.WeatherResponse
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -43,9 +46,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var weatherServices: WeatherService
     private lateinit var weatherResponse: WeatherResponse
-
     private lateinit var geoServices: GeoService
     private lateinit var geoResponse: Place
+
 
     private val requestPermissionLauncher =
         registerForActivityResult(
@@ -64,13 +67,20 @@ class MainActivity : AppCompatActivity() {
                 // decision.
 
                 // generate a snack bar message like a toast to confirm the message
+                Snackbar.make(view, "Location permission is required for weather updates.", Snackbar.LENGTH_LONG)
+                    .show()
             }
         }
 
     private var cancellationTokenSource:CancellationTokenSource? = null
 
     private var weatherServiceCall:Call<WeatherResponse>? = null
-    private var geoServiceCall:Call<Place>? = null
+
+    private var geoServiceCall:Call<List<Place>>? = null
+
+    private var updateJob: Job? = null
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,6 +108,7 @@ class MainActivity : AppCompatActivity() {
 
         requestLocationPermission()
     }
+
 
     private fun requestLocationPermission() {
         when {
@@ -131,23 +142,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun cancelRequest() {
+        // Cancel the location request
+        cancellationTokenSource?.cancel()
+        weatherServiceCall?.cancel()
+        geoServiceCall?.cancel()
+        updateJob?.cancel()
+    }
+
     private fun updateLocationAndWeatherRepeatedly() {
         // IO coroutine
         lifecycleScope.launch(Dispatchers.IO) {
             while (true) {
                 // Launch or withContext
-                launch(Dispatchers.Main) {
+                updateJob = launch(Dispatchers.Main) {
                     updateLocationAndWeather()
                 }
                 delay(15000)
                 cancelRequest()
             }
         }
-    }
-
-    private fun cancelRequest() {
-        // Cancel the location request
-        cancellationTokenSource?.cancel()
     }
 
     private fun updateLocationAndWeather() {
@@ -170,11 +184,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-//    private updateLocation(location: Location) {
-//        geoServiceCall = geoServices.geto
-//    }
-
 
     private fun updateWeather(location: Location) {
         // Call to get weather
@@ -206,8 +215,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePlace(location: Location) {
+        geoServiceCall = geoServices.getPlace(
+            location.latitude,
+            location.longitude,
+            getString(R.string.appid)
+        )
+        geoServiceCall?.enqueue(
+            object : Callback<List<Place>> {
+                override fun onResponse(call: Call<List<Place>>, response: Response<List<Place>>) {
+                    response.body()?.let {
+                        geoResponse = it
+                        displayPlace(true)
+                    } ?: displayPlace(false)
+                }
 
+                override fun onFailure(call: Call<Place>, t: Throwable) {
+                    displayPlace(false)
+                }
+            })
     }
+
 
     private fun displayWeather() {
         val description = weatherResponse.weather[0].description.split(" ").joinToString(" ") {

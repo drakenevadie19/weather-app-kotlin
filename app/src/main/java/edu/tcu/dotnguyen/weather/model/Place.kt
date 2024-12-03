@@ -1,4 +1,4 @@
-package edu.tcu.bmei.weatherdemo.model
+package edu.tcu.dotnguyen.weather.model
 
 data class Place (
     val name: String,
