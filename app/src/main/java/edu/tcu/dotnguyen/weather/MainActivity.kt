@@ -4,8 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
-import android.provider.Settings.Global.getString
-//import android.provider.Settings.Global.getString
 import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,13 +25,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.create
 import java.text.DateFormat
 import java.util.Date
 import java.util.TimeZone
@@ -47,7 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var weatherServices: WeatherService
     private lateinit var weatherResponse: WeatherResponse
     private lateinit var geoServices: GeoService
-    private lateinit var geoResponse: Place
+    private lateinit var geoResponse: List<Place>
 
 
     private val requestPermissionLauncher =
@@ -80,7 +76,7 @@ class MainActivity : AppCompatActivity() {
 
     private var updateJob: Job? = null
 
-
+    private var delayJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,6 +105,12 @@ class MainActivity : AppCompatActivity() {
         requestLocationPermission()
     }
 
+    override fun onDestroy() {
+        // Cancel delay job before ondestry
+        cancelRequest()
+        delayJob?.cancel()
+        super.onDestroy()
+    }
 
     private fun requestLocationPermission() {
         when {
@@ -152,7 +154,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateLocationAndWeatherRepeatedly() {
         // IO coroutine
-        lifecycleScope.launch(Dispatchers.IO) {
+        // Cancel this job when screen rotate => refresh => app clear everything --> calling oncreate
+        delayJob = lifecycleScope.launch(Dispatchers.IO) {
             while (true) {
                 // Launch or withContext
                 updateJob = launch(Dispatchers.Main) {
@@ -174,7 +177,7 @@ class MainActivity : AppCompatActivity() {
                 fusedLocationClient.getCurrentLocation(
                     Priority.PRIORITY_HIGH_ACCURACY,
                     // TImer to stop request for location, in case can not get location info and app run forever
-                    cancellationTokenSource?.token).addOnSuccessListener { it ->
+                    cancellationTokenSource?.token).addOnSuccessListener {
                         if (it != null) {
                             updateWeather(it)
                         } else {
@@ -210,9 +213,10 @@ class MainActivity : AppCompatActivity() {
                 override fun onFailure(p0: Call<WeatherResponse>, p1: Throwable) {
                     displayUpdateFailed()
                 }
-            })
-        }
+            }
+        )
     }
+
 
     private fun updatePlace(location: Location) {
         geoServiceCall = geoServices.getPlace(
@@ -220,8 +224,8 @@ class MainActivity : AppCompatActivity() {
             location.longitude,
             getString(R.string.appid)
         )
-        geoServiceCall?.enqueue(
-            object : Callback<List<Place>> {
+
+        geoServiceCall?.enqueue(object: Callback<List<Place>> {
                 override fun onResponse(call: Call<List<Place>>, response: Response<List<Place>>) {
                     response.body()?.let {
                         geoResponse = it
@@ -229,20 +233,21 @@ class MainActivity : AppCompatActivity() {
                     } ?: displayPlace(false)
                 }
 
-                override fun onFailure(call: Call<Place>, t: Throwable) {
+                override fun onFailure(call: Call<List<Place>>, t: Throwable) {
                     displayPlace(false)
                 }
-            })
+            }
+        )
     }
 
 
     private fun displayWeather() {
         val description = weatherResponse.weather[0].description.split(" ").joinToString(" ") {
-            it.replaceFirstChar { char -> char.uppercase }
+            it.replaceFirstChar { char -> char.uppercase() }
         }
-        binding.descriptionTv.text = getString(R.string.description, description, WeatherResponse.main.temp_max, WeatherResponse.main.temp_min)
+        binding.descriptionTv.text = getString(R.string.description, description, weatherResponse.main.temp_max, weatherResponse.main.temp_min)
 
-        val utcInMs = (weatherResponse.sys.sunrise + weatherRespomse.timezone) * 1000L - TimeZone.getDefault().rawOffset
+        val utcInMs = (weatherResponse.sys.sunrise + weatherResponse.timezone) * 1000L - TimeZone.getDefault().rawOffset
         val sunRise = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(utcInMs))
     }
 
@@ -250,10 +255,11 @@ class MainActivity : AppCompatActivity() {
 
         // When geoCall success => displayPlace(true)
         // If is is success fail => displayPlace(false)
-        binding.placeTv.text = getString(R.string.place, geoResponse[0].name, gepResponse[0].state)
+        binding.placeTv.text = getString(R.string.place, geoResponse[0].name, geoResponse[0].state)
 
     }
 
     private fun displayUpdateFailed() {
+        // Counting 1 minutes
     }
 }
