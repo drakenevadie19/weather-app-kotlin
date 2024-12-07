@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,8 +19,8 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.snackbar.Snackbar
-import edu.tcu.dotnguyen.weather.model.Place
 import edu.tcu.dotnguyen.weather.databinding.ActivityMainBinding
+import edu.tcu.dotnguyen.weather.model.Place
 import edu.tcu.dotnguyen.weather.model.WeatherResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -45,7 +46,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var geoServices: GeoService
     private lateinit var geoResponse: List<Place>
 
-
     private val requestPermissionLauncher =
         registerForActivityResult(
             ActivityResultContracts.RequestPermission()
@@ -54,6 +54,7 @@ class MainActivity : AppCompatActivity() {
                 // Permission is granted. Continue the action or workflow in your
                 // app.
                 // generate a snack bar message like a toast to confirm the message
+                print("Here to get location and weather")
                 updateLocationAndWeatherRepeatedly()
             } else {
                 // Explain to the user that the feature is unavailable because the
@@ -106,7 +107,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        // Cancel delay job before ondestry
+        // Cancel delay job before onDestroy
         cancelRequest()
         delayJob?.cancel()
         super.onDestroy()
@@ -119,6 +120,8 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.ACCESS_COARSE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED -> {
                 // You can use the API that requires the permission.
+                print("Permission is granted")
+                updateLocationAndWeatherRepeatedly()
             }
             // True, then show details
             ActivityCompat.shouldShowRequestPermissionRationale(
@@ -154,7 +157,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateLocationAndWeatherRepeatedly() {
         // IO coroutine
-        // Cancel this job when screen rotate => refresh => app clear everything --> calling oncreate
+        // Cancel this job when screen rotate => refresh => app clear everything --> calling onCreate
         delayJob = lifecycleScope.launch(Dispatchers.IO) {
             while (true) {
                 // Launch or withContext
@@ -190,6 +193,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateWeather(location: Location) {
         // Call to get weather
+        print(location);
         weatherServiceCall = weatherServices.getWeather(
             location.latitude,
             location.longitude,
@@ -197,16 +201,21 @@ class MainActivity : AppCompatActivity() {
             "imperial"
         )
 
+//        Log.d("WeatherAPI", "Request URL: ${weatherServiceCall?.request()}")
+
         weatherServiceCall?.enqueue(
             object: Callback<WeatherResponse> {
                 override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
                     // Got weather response
                     val weatherResponseNullable = response.body()
                     if (weatherResponseNullable != null) {
-                        // The response is good
                         weatherResponse = weatherResponseNullable
+                        print("Calling Weather Successfully")
                         updatePlace(location)
                         displayWeather()
+                    } else {
+                        Log.d("WeatherAPI", "Response failed with code: ${response.code()}")
+                        displayUpdateFailed()
                     }
                 }
 
@@ -217,6 +226,66 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun displayWeather() {
+        val description = weatherResponse.weather[0].description.split(" ").joinToString(" ") {
+            it.replaceFirstChar { char -> char.uppercase() }
+        }
+
+        val temperature = weatherResponse.main.temp;
+
+        binding.temperatureTv.text = getString(
+            R.string.temperature,
+            temperature
+        )
+
+        binding.descriptionTv.text = getString(
+            R.string.description,
+            description,
+            weatherResponse.main.temp_max,
+            weatherResponse.main.temp_min
+        )
+
+        val utcInMs1 = (weatherResponse.sys.sunrise + weatherResponse.timezone) * 1000L - TimeZone.getDefault().rawOffset
+        val sunRise = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(utcInMs1))
+        val utcInMs2 = (weatherResponse.sys.sunset + weatherResponse.timezone) * 1000L - TimeZone.getDefault().rawOffset
+        val sunSet = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(utcInMs2))
+        binding.sunDataTv.text = getString(
+            R.string.sun_data,
+            sunRise,
+            sunSet
+        )
+
+        binding.windDataTv.text = getString(
+            R.string.wind_data,
+            weatherResponse.wind.speed,
+            weatherResponse.wind.deg,
+            weatherResponse.wind.gust
+        )
+
+        binding.precipitationDataTv.text = getString(
+            R.string.precipitation_data,
+            weatherResponse.main.humidity,
+            weatherResponse.clouds.all
+        )
+
+        val vis = weatherResponse.visibility / 1000 * 0.62137119
+        val pressure = weatherResponse.main.pressure  * 0.02953
+//        print("Visibility" + vis)
+        binding.otherDataTv.text = getString(
+            R.string.other_data,
+            weatherResponse.main.feels_like,
+//            weatherResponse.visibility,
+            vis,
+//            weatherResponse.main.pressure
+            pressure
+        )
+
+    }
+
+    private fun displayUpdateFailed() {
+        // Counting 1 minutes
+        Snackbar.make(binding.root, "When weather fetching falls", Snackbar.LENGTH_LONG).show()
+    }
 
     private fun updatePlace(location: Location) {
         geoServiceCall = geoServices.getPlace(
@@ -230,7 +299,7 @@ class MainActivity : AppCompatActivity() {
                     response.body()?.let {
                         geoResponse = it
                         displayPlace(true)
-                    } ?: displayPlace(false)
+                    }?: displayPlace(false)
                 }
 
                 override fun onFailure(call: Call<List<Place>>, t: Throwable) {
@@ -240,26 +309,12 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-
-    private fun displayWeather() {
-        val description = weatherResponse.weather[0].description.split(" ").joinToString(" ") {
-            it.replaceFirstChar { char -> char.uppercase() }
-        }
-        binding.descriptionTv.text = getString(R.string.description, description, weatherResponse.main.temp_max, weatherResponse.main.temp_min)
-
-        val utcInMs = (weatherResponse.sys.sunrise + weatherResponse.timezone) * 1000L - TimeZone.getDefault().rawOffset
-        val sunRise = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(utcInMs))
-    }
-
     private fun displayPlace(isSuccess: Boolean) {
 
         // When geoCall success => displayPlace(true)
         // If is is success fail => displayPlace(false)
-        binding.placeTv.text = getString(R.string.place, geoResponse[0].name, geoResponse[0].state)
-
-    }
-
-    private fun displayUpdateFailed() {
-        // Counting 1 minutes
+        if (isSuccess) {
+            binding.placeTv.text = getString(R.string.place, geoResponse[0].name, geoResponse[0].state)
+        }
     }
 }
