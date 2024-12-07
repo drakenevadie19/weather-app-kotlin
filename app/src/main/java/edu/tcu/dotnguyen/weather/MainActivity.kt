@@ -1,6 +1,7 @@
 package edu.tcu.dotnguyen.weather
 
 import android.Manifest
+import android.app.Dialog
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
@@ -46,6 +47,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var geoServices: GeoService
     private lateinit var geoResponse: List<Place>
 
+    // Progress dialog to show loading state
+    private lateinit var dialog: Dialog
+
     private val requestPermissionLauncher =
         registerForActivityResult(
             ActivityResultContracts.RequestPermission()
@@ -54,7 +58,11 @@ class MainActivity : AppCompatActivity() {
                 // Permission is granted. Continue the action or workflow in your
                 // app.
                 // generate a snack bar message like a toast to confirm the message
-                print("Here to get location and weather")
+                Snackbar.make(
+                    view,
+                    getString(R.string.location_permission_granted),
+                    Snackbar.LENGTH_SHORT
+                ).show()
                 updateLocationAndWeatherRepeatedly()
             } else {
                 // Explain to the user that the feature is unavailable because the
@@ -64,7 +72,9 @@ class MainActivity : AppCompatActivity() {
                 // decision.
 
                 // generate a snack bar message like a toast to confirm the message
-                Snackbar.make(view, "Location permission is required for weather updates.", Snackbar.LENGTH_LONG)
+                Snackbar.make(view,
+                        getString(R.string.location_permission_denied),
+                        Snackbar.LENGTH_SHORT)
                     .show()
             }
         }
@@ -78,6 +88,10 @@ class MainActivity : AppCompatActivity() {
     private var updateJob: Job? = null
 
     private var delayJob: Job? = null
+
+    // Counters for handling data success state
+    private var counter = 0
+    private var informationSuccessRead = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,6 +124,8 @@ class MainActivity : AppCompatActivity() {
         // Cancel delay job before onDestroy
         cancelRequest()
         delayJob?.cancel()
+        informationSuccessRead = false
+        counter = 0
         super.onDestroy()
     }
 
@@ -120,7 +136,7 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.ACCESS_COARSE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED -> {
                 // You can use the API that requires the permission.
-                print("Permission is granted")
+//                print("Permission is granted")
                 updateLocationAndWeatherRepeatedly()
             }
             // True, then show details
@@ -171,6 +187,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateLocationAndWeather() {
+
+        showProgressDialog()
         when (PackageManager.PERMISSION_GRANTED) {
             ContextCompat.checkSelfPermission(
                 this,
@@ -189,6 +207,14 @@ class MainActivity : AppCompatActivity() {
                     }
             }
         }
+    }
+
+    // Show a progress dialog while loading
+    private fun showProgressDialog() {
+        this.dialog = Dialog(this)
+        this.dialog.setContentView(R.layout.in_progress)
+        this.dialog.setCancelable(false)
+        this.dialog.show()
     }
 
     private fun updateWeather(location: Location) {
@@ -238,6 +264,17 @@ class MainActivity : AppCompatActivity() {
             temperature
         )
 
+        // Handle weather condition icons
+        var icon = weatherResponse.weather[0].icon
+        val sameIcon = listOf("03", "04", "09", "11", "13", "50")
+        if (sameIcon.contains(icon.substring(0, 2))) {
+            icon = icon.substring(0, 2)
+        }
+        icon = "ic_$icon"
+        with(binding) {
+            conditionIv.setImageResource(resources.getIdentifier(icon, "drawable", packageName))
+        }
+
         binding.descriptionTv.text = getString(
             R.string.description,
             description,
@@ -280,11 +317,23 @@ class MainActivity : AppCompatActivity() {
             pressure
         )
 
+        // Update last connection status
+        binding.connectionTv.text = getString(R.string.updated, "Just Now Haha")
+        dialog.dismiss()
+        counter = 0
+        informationSuccessRead = true
+
     }
 
     private fun displayUpdateFailed() {
         // Counting 1 minutes
-        Snackbar.make(binding.root, "When weather fetching falls", Snackbar.LENGTH_LONG).show()
+//        Snackbar.make(binding.root, "When weather fetching falls", Snackbar.LENGTH_LONG).show()
+        if (informationSuccessRead) {
+            counter++
+            val time = "$counter Minutes Ago"
+            binding.connectionTv.text = getString(R.string.updated, time)
+        }
+        dialog.dismiss()
     }
 
     private fun updatePlace(location: Location) {
