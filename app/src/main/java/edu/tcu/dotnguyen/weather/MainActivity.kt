@@ -219,7 +219,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateWeather(location: Location) {
         // Call to get weather
-        print(location);
+//        print(location)
         weatherServiceCall = weatherServices.getWeather(
             location.latitude,
             location.longitude,
@@ -257,7 +257,7 @@ class MainActivity : AppCompatActivity() {
             it.replaceFirstChar { char -> char.uppercase() }
         }
 
-        val temperature = weatherResponse.main.temp;
+        val temperature = weatherResponse.main.temp
 
         binding.temperatureTv.text = getString(
             R.string.temperature,
@@ -327,7 +327,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun displayUpdateFailed() {
         // Counting 1 minutes
-//        Snackbar.make(binding.root, "When weather fetching falls", Snackbar.LENGTH_LONG).show()
         if (informationSuccessRead) {
             counter++
             val time = "$counter Minutes Ago"
