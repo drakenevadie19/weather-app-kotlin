@@ -5,7 +5,6 @@ import android.app.Dialog
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -181,6 +180,7 @@ class MainActivity : AppCompatActivity() {
                     updateLocationAndWeather()
                 }
                 delay(15000)
+
                 cancelRequest()
             }
         }
@@ -219,15 +219,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateWeather(location: Location) {
         // Call to get weather
-//        print(location)
         weatherServiceCall = weatherServices.getWeather(
             location.latitude,
             location.longitude,
             getString(R.string.appid),
             "imperial"
         )
-
-//        Log.d("WeatherAPI", "Request URL: ${weatherServiceCall?.request()}")
 
         weatherServiceCall?.enqueue(
             object: Callback<WeatherResponse> {
@@ -236,11 +233,11 @@ class MainActivity : AppCompatActivity() {
                     val weatherResponseNullable = response.body()
                     if (weatherResponseNullable != null) {
                         weatherResponse = weatherResponseNullable
-                        print("Calling Weather Successfully")
+//                        print("Calling Weather Successfully")
                         updatePlace(location)
                         displayWeather()
-                    } else {
-                        Log.d("WeatherAPI", "Response failed with code: ${response.code()}")
+                    }
+                    else {
                         displayUpdateFailed()
                     }
                 }
@@ -307,31 +304,37 @@ class MainActivity : AppCompatActivity() {
 
         val vis = weatherResponse.visibility / 1000 * 0.62137119
         val pressure = weatherResponse.main.pressure  * 0.02953
-//        print("Visibility" + vis)
         binding.otherDataTv.text = getString(
             R.string.other_data,
             weatherResponse.main.feels_like,
-//            weatherResponse.visibility,
             vis,
-//            weatherResponse.main.pressure
             pressure
         )
 
         // Update last connection status
-        binding.connectionTv.text = getString(R.string.updated, "Just Now Haha")
+        binding.connectionTv.text = getString(R.string.updated, "just now!")
         dialog.dismiss()
         counter = 0
         informationSuccessRead = true
 
     }
 
+    private var timetracker = 0
     private fun displayUpdateFailed() {
         // Counting 1 minutes
-        if (informationSuccessRead) {
+        timetracker += 15
+        if (timetracker >= 60) {
             counter++
-            val time = "$counter Minutes Ago"
-            binding.connectionTv.text = getString(R.string.updated, time)
+            timetracker = 0
+
+            // Start a coroutine to handle the delay
+            if (informationSuccessRead) {
+                val time = "$counter Minute${if (counter > 1) "s" else ""} Ago!"
+                // Update the connection status text
+                binding.connectionTv.text = getString(R.string.updated, time)
+            }
         }
+
         dialog.dismiss()
     }
 
@@ -358,7 +361,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun displayPlace(isSuccess: Boolean) {
-
         // When geoCall success => displayPlace(true)
         // If is is success fail => displayPlace(false)
         if (isSuccess) {
