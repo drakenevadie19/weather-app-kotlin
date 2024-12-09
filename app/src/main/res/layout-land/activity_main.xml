@@ -80,6 +80,7 @@
             app:layout_constraintEnd_toStartOf="@id/wind_cv"
             app:layout_constraintHorizontal_weight="1"
             app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/description_tv"
             app:layout_constraintTop_toTopOf="@id/wind_cv">
 
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -115,11 +116,12 @@
             android:layout_margin="5dp"
             app:cardCornerRadius="5dp"
             app:cardElevation="5dp"
-            app:layout_constraintBottom_toTopOf="@id/other_cv"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toTopOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/precipitation_cv"
             app:layout_constraintHorizontal_weight="1"
             app:layout_constraintStart_toEndOf="@id/sun_cv"
-            app:layout_constraintTop_toBottomOf="@id/description_tv">
+            app:layout_constraintTop_toBottomOf="@id/description_tv"
+            app:layout_constraintTop_toTopOf="@id/wind_cv">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
@@ -155,11 +157,11 @@
             android:layout_marginEnd="5dp"
             app:cardCornerRadius="5dp"
             app:cardElevation="5dp"
-            app:layout_constraintBottom_toBottomOf="@id/other_cv"
+            app:layout_constraintBottom_toBottomOf="@id/wind_cv"
             app:layout_constraintEnd_toStartOf="@id/other_cv"
             app:layout_constraintHorizontal_weight="1"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/other_cv">
+            app:layout_constraintStart_toEndOf="@id/wind_cv"
+            app:layout_constraintTop_toTopOf="@id/wind_cv">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
@@ -194,11 +196,11 @@
             android:layout_margin="5dp"
             app:cardCornerRadius="5dp"
             app:cardElevation="5dp"
-            app:layout_constraintBottom_toTopOf="@id/connection_tv"
+            app:layout_constraintBottom_toBottomOf="@id/wind_cv"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_weight="1"
             app:layout_constraintStart_toEndOf="@id/precipitation_cv"
-            app:layout_constraintTop_toBottomOf="@id/wind_cv">
+            app:layout_constraintTop_toTopOf="@id/wind_cv">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
@@ -236,8 +238,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/other_cv" />
+            app:layout_constraintTop_toBottomOf="@id/wind_cv" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </ScrollView>

@@ -31,6 +31,8 @@ import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.DateFormat
 import java.util.Date
 import java.util.TimeZone
@@ -140,18 +142,22 @@ class MainActivity : AppCompatActivity() {
             }
             // True, then show details
             ActivityCompat.shouldShowRequestPermissionRationale(
-                this, Manifest.permission.ACCESS_COARSE_LOCATION) -> {
-                    //GENERATE snack bar to explain
-
+                this, Manifest.permission.ACCESS_COARSE_LOCATION
+            ) -> {
+                //GENERATE snack bar to explain
                 // In an educational UI, explain to the user why your app requires this
                 // permission for a specific feature to behave as expected, and what
                 // features are disabled if it's declined. In this UI, include a
                 // "cancel" or "no thanks" button that lets the user continue
                 // using your app without granting the permission.
-
-                // If OK is clicked, show the prompt/launcher
-                requestPermissionLauncher.launch(
-                    Manifest.permission.ACCESS_COARSE_LOCATION)
+                Snackbar.make(
+                    view, getString(R.string.location_permission_required), Snackbar.LENGTH_INDEFINITE
+                ).setAction("OK") {
+                    // If OK is clicked, show the prompt/launcher
+                    requestPermissionLauncher.launch(
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                }.show()
             }
             else -> {
                 // You can directly ask for the permission.
@@ -296,6 +302,26 @@ class MainActivity : AppCompatActivity() {
             weatherResponse.wind.gust
         )
 
+        // Handle precipitation data
+        val rain = weatherResponse.rain
+        val snow = weatherResponse.snow
+        if (rain != null) {
+            binding.precipitationDataTv.text = getString(
+                R.string.precipitation_time,
+                roundToTwoDecimalPlaces(rain.one_h), "rain"
+            )
+        } else if (snow != null) {
+            binding.precipitationDataTv.text = getString(
+                R.string.precipitation_time,
+                roundToTwoDecimalPlaces(snow.one_h), "snow"
+            )
+        } else {
+            val humidity = weatherResponse.main.humidity
+            val cloudiness = weatherResponse.clouds.all
+            binding.precipitationDataTv.text = getString(
+                R.string.precipitation_data, humidity, cloudiness
+            )
+        }
         binding.precipitationDataTv.text = getString(
             R.string.precipitation_data,
             weatherResponse.main.humidity,
@@ -336,6 +362,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         dialog.dismiss()
+    }
+
+    // Round a number to two decimal places
+    private fun roundToTwoDecimalPlaces(number: Double): String {
+        return BigDecimal(number * 0.0393701).setScale(2, RoundingMode.HALF_UP).toString()
     }
 
     private fun updatePlace(location: Location) {

@@ -19,6 +19,7 @@
     <string name="wind_data">Speed: %.0f mph\nDirection: %d°\nGust: %.0f mph</string>
     <string name="precipitation_title">PRECIPITATION</string>
     <string name="precipitation_data">Humidity: %d%%\nCloudiness: %d%%</string>
+    <string name="precipitation_time">%s\" %s in last 1h</string>
     <string name="other_title">OTHER</string>
     <string name="other_data">Feels Like: %.0f°\nVisibility: %.0f mi\nPressure: %.2f inHg</string>
     <string name="connecting">Connecting…</string>
